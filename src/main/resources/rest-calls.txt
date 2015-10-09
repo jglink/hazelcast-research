@@ -1,0 +1,16 @@
+
+# 100 neue 'SimpleFacts' anlegen
+GET http://localhost:8080/facts/masscreation/100
+
+
+# 'SimpleFact' mit Id <abcdef-abcdef> abfragen
+GET http://localhost:8080/facts/abcdef-abcdef
+
+
+# legt ein neues 'SimpleFact' mit <new-fact> als Parameter an; Result: gesamtes SimpleFact inkl. generierter UUID
+POST http://localhost:8080/facts/new-fact
+
+
+# 'SimpleFact' mit Id <abcdef-abcdef> loeschen
+DELETE http://localhost:8080/facts/abcdef-abcdef
+

@@ -1,0 +1,73 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:hz="http://www.hazelcast.com/schema/spring"
+       xmlns:cache="http://www.springframework.org/schema/cache"
+       xsi:schemaLocation=
+              "http://www.springframework.org/schema/beans
+              http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+              http://www.hazelcast.com/schema/spring
+              http://www.hazelcast.com/schema/spring/hazelcast-spring-3.5.xsd
+              http://www.springframework.org/schema/cache
+              http://www.springframework.org/schema/cache/spring-cache.xsd">
+
+    <!--<context:annotation-config />-->
+
+
+    <hz:hazelcast id="instance">
+        <hz:config>
+            <hz:instance-name>spring-managed-hazelcast</hz:instance-name>
+            <hz:group name="group" password="pwd"/>
+            <hz:properties>
+                <hz:property name="hazelcast.merge.first.run.delay.seconds">5</hz:property>
+                <hz:property name="hazelcast.merge.next.run.delay.seconds">5</hz:property>
+            </hz:properties>
+            <hz:network port="5700" port-auto-increment="true">
+                <hz:join>
+                    <hz:multicast enabled="true"/>
+                </hz:join>
+            </hz:network>
+            <!-- Map with 'write-behind' configuration when 'write-delay-seconds' > 0 -->
+            <hz:map name="com.dematic.research.hazelcast.model.SimpleFact">
+                <hz:map-store enabled="true"
+                              write-delay-seconds="5"
+                              implementation="simpleFactMapStore"/>
+            </hz:map>
+
+            <!--
+            Map for just caching the entities (no 'write-behind').
+            Listener does persisting of entities, when evicted from cache (after time-to-live or when max-size
+            of cache is reached)
+             -->
+            <hz:map name="com.dematic.research.hazelcast.model.CachedEntity"
+                    time-to-live-seconds="300"
+                    max-size-policy="PER_NODE" max-size="5000"
+                    eviction-policy="LRU" eviction-percentage="25"
+                    min-eviction-check-millis="1000">
+                <!--
+                MapLoader provided to lazy load entities from the database which are not in the cache
+                -->
+                <hz:map-store enabled="true"
+                              write-delay-seconds="0"
+                              implementation="cachedEntityMapLoader"/>
+                <hz:entry-listeners>
+                    <!--
+                    with 'local=true':
+                       entry listener will only listen on Map events on the node which owns the cached entity!
+                    -->
+                    <hz:entry-listener implementation="removeEntityFromCacheListener"
+                                       local="true"
+                                       include-value="true"/>
+                </hz:entry-listeners>
+            </hz:map>
+
+        </hz:config>
+    </hz:hazelcast>
+
+    <bean id="simpleFactMapStore" class="com.dematic.research.hazelcast.mapstore.SimpleFactMapStore"/>
+
+    <bean id="cachedEntityMapLoader" class="com.dematic.research.hazelcast.maploader.CachedEntityMapLoader"/>
+
+    <bean id="removeEntityFromCacheListener" class="com.dematic.research.hazelcast.listener.CacheEntityRemovedListener"/>
+
+</beans>
